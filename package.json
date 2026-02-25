@@ -5,7 +5,7 @@
   "scripts": {
     "build": "wp-scripts build",
     "start": "wp-scripts start",
-    "zip": "npm run build && cd .. && zip -r next-title-trim-count.zip next-Title-TrimCount -x 'next-Title-TrimCount/node_modules/*' -x 'next-Title-TrimCount/src/*' -x 'next-Title-TrimCount/package.json' -x 'next-Title-TrimCount/package-lock.json' && echo 'Created: ../next-title-trim-count.zip'"
+    "zip": "npm run build && cd .. && zip -r next-title-trim-count.zip next-Title-TrimCount -x 'next-Title-TrimCount/node_modules/*' -x 'next-Title-TrimCount/src/*' -x 'next-Title-TrimCount/package.json' -x 'next-Title-TrimCount/package-lock.json' -x 'next-Title-TrimCount/.git/*' -x 'next-Title-TrimCount/.gitignore' -x 'next-Title-TrimCount/.DS_Store' && echo 'Created: ../next-title-trim-count.zip'"
   },
   "devDependencies": {
     "@wordpress/scripts": "^30.0.0"
