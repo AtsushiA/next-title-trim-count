@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Next Title TrimCount
  * Description: タイトル・見出しブロックに文字数制限を追加するプラグイン。制限を超えた部分は「…」で省略表示されます。
- * Version:     1.1.0
+ * Version:     1.2.0
  * Author:		NExT-Season
  * Author URI:	https://next-season.net
  * Requires at least: 6.0
@@ -45,23 +45,69 @@ add_filter( 'render_block', function ( $block_content, $block ) {
 	}
 
 	$char_limit = isset( $block['attrs']['nextCharLimit'] ) ? (int) $block['attrs']['nextCharLimit'] : 0;
+	$line_clamp = isset( $block['attrs']['nextLineClamp'] ) ? (int) $block['attrs']['nextLineClamp'] : 0;
 
-	if ( $char_limit <= 0 ) {
-		return $block_content;
+	// 行数制限（line-clamp）が設定されている場合は CSS で処理（文字数制限より優先）
+	if ( $line_clamp > 0 ) {
+		return next_title_trim_count_apply_line_clamp( $block_content, $line_clamp );
 	}
 
-	return preg_replace_callback(
-		'/(<h[1-6][^>]*>)(.*?)(<\/h[1-6]>)/si',
-		function ( $matches ) use ( $char_limit ) {
-			$open_tag  = $matches[1];
-			$inner     = $matches[2];
-			$close_tag = $matches[3];
+	// 文字数制限
+	if ( $char_limit > 0 ) {
+		return preg_replace_callback(
+			'/(<h[1-6][^>]*>)(.*?)(<\/h[1-6]>)/si',
+			function ( $matches ) use ( $char_limit ) {
+				return $matches[1] . next_title_trim_count_truncate( $matches[2], $char_limit ) . $matches[3];
+			},
+			$block_content
+		);
+	}
 
-			return $open_tag . next_title_trim_count_truncate( $inner, $char_limit ) . $close_tag;
+	return $block_content;
+}, 10, 2 );
+
+/**
+ * h タグに CSS line-clamp 用のインラインスタイルを付与する。
+ *
+ * ベンダープレフィックス付きと標準プロパティの両方を設定する。
+ *
+ * @param string $block_content レンダリング済みブロック HTML
+ * @param int    $line_clamp    最大行数
+ * @return string
+ */
+function next_title_trim_count_apply_line_clamp( $block_content, $line_clamp ) {
+	$line_clamp = (int) $line_clamp;
+
+	$css = sprintf(
+		'overflow:hidden;display:-webkit-box;-webkit-line-clamp:%1$d;-webkit-box-orient:vertical;line-clamp:%1$d;',
+		$line_clamp
+	);
+
+	return preg_replace_callback(
+		'/(<h[1-6])([^>]*)(>)/i',
+		function ( $matches ) use ( $css ) {
+			$tag   = $matches[1]; // 例: <h2
+			$attrs = $matches[2]; // 既存の属性文字列
+			$close = $matches[3]; // >
+
+			// 既存の style 属性があれば先頭に追記、なければ新規追加
+			if ( preg_match( '/\bstyle\s*=\s*"/i', $attrs ) ) {
+				$attrs = preg_replace_callback(
+					'/(\bstyle\s*=\s*")([^"]*")/i',
+					function ( $m ) use ( $css ) {
+						return $m[1] . $css . $m[2];
+					},
+					$attrs
+				);
+			} else {
+				$attrs .= ' style="' . esc_attr( $css ) . '"';
+			}
+
+			return $tag . $attrs . $close;
 		},
 		$block_content
 	);
-}, 10, 2 );
+}
 
 /**
  * HTML 構造を保持しながら、テキスト文字数が上限を超えた場合に「…」でトリムする。

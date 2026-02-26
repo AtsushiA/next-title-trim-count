@@ -1,6 +1,6 @@
 {
   "name": "next-title-trim-count",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "タイトル・見出しブロックに文字数制限を追加するWordPressプラグイン",
   "scripts": {
     "build": "wp-scripts build",
