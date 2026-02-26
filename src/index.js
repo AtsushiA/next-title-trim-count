@@ -1,15 +1,17 @@
 import { addFilter } from '@wordpress/hooks';
 import { InspectorControls } from '@wordpress/block-editor';
-import { PanelBody, TextControl, Notice } from '@wordpress/components';
+import { PanelBody, TextControl, RadioControl, Notice } from '@wordpress/components';
 import { createHigherOrderComponent } from '@wordpress/compose';
 import { useSelect } from '@wordpress/data';
 import { __ } from '@wordpress/i18n';
 
 const SUPPORTED_BLOCKS = [ 'core/heading', 'core/post-title' ];
-const ATTR_NAME        = 'nextCharLimit';
+const ATTR_CHAR        = 'nextCharLimit';
+const ATTR_LINE        = 'nextLineClamp';
+const ATTR_MODE        = 'nextTrimMode'; // 'char' | 'line'
 
 // -------------------------------------------------------
-// 1. 対象ブロックに nextCharLimit 属性を追加
+// 1. 対象ブロックに属性を追加
 // -------------------------------------------------------
 addFilter(
 	'blocks.registerBlockType',
@@ -22,17 +24,16 @@ addFilter(
 			...settings,
 			attributes: {
 				...( settings.attributes || {} ),
-				[ ATTR_NAME ]: {
-					type:    'number',
-					default: 0,
-				},
+				[ ATTR_CHAR ]: { type: 'number', default: 0 },
+				[ ATTR_LINE ]: { type: 'number', default: 0 },
+				[ ATTR_MODE ]: { type: 'string', default: 'char' },
 			},
 		};
 	}
 );
 
 // -------------------------------------------------------
-// 2. BlockEdit に文字数制限パネルを追加
+// ユーティリティ
 // -------------------------------------------------------
 
 /** HTML からプレーンテキストを取得 */
@@ -43,13 +44,34 @@ const getPlainText = ( html ) => {
 	return el.textContent || el.innerText || '';
 };
 
-/** 文字数制限パネルの共通 UI（core/heading 用） */
-const CharLimitPanel = ( { charLimit, charCount, setAttributes } ) => {
-	const isOver = charLimit > 0 && charCount > charLimit;
+/** 数値入力コントロール（共通） */
+const LimitInput = ( { label, help, value, onChange } ) => (
+	<TextControl
+		label={ label }
+		help={ help }
+		type="number"
+		min={ 0 }
+		value={ value === 0 ? '' : String( value ) }
+		placeholder="0"
+		onChange={ ( v ) => {
+			const parsed = parseInt( v, 10 );
+			onChange( isNaN( parsed ) || parsed < 0 ? 0 : parsed );
+		} }
+	/>
+);
 
-	const handleChange = ( value ) => {
-		const parsed = parseInt( value, 10 );
-		setAttributes( { [ ATTR_NAME ]: isNaN( parsed ) || parsed < 0 ? 0 : parsed } );
+// -------------------------------------------------------
+// 2. core/heading 用パネル
+// -------------------------------------------------------
+const CharLimitPanel = ( { charLimit, lineClamp, trimMode, charCount, setAttributes } ) => {
+	const isOver = trimMode === 'char' && charLimit > 0 && charCount > charLimit;
+
+	const handleModeChange = ( mode ) => {
+		if ( mode === 'line' ) {
+			setAttributes( { [ ATTR_MODE ]: 'line', [ ATTR_CHAR ]: 0 } );
+		} else {
+			setAttributes( { [ ATTR_MODE ]: 'char', [ ATTR_LINE ]: 0 } );
+		}
 	};
 
 	return (
@@ -58,56 +80,81 @@ const CharLimitPanel = ( { charLimit, charCount, setAttributes } ) => {
 				title={ __( '文字数制限', 'next-title-trim-count' ) }
 				initialOpen={ true }
 			>
-				<TextControl
-					label={ __( '最大文字数', 'next-title-trim-count' ) }
-					help={ __( '0 を設定すると制限なし', 'next-title-trim-count' ) }
-					type="number"
-					min={ 0 }
-					value={ charLimit === 0 ? '' : String( charLimit ) }
-					placeholder="0"
-					onChange={ handleChange }
+				<RadioControl
+					label={ __( '制限タイプ', 'next-title-trim-count' ) }
+					selected={ trimMode }
+					options={ [
+						{ label: __( '文字数', 'next-title-trim-count' ), value: 'char' },
+						{ label: __( '行数', 'next-title-trim-count' ),   value: 'line' },
+					] }
+					onChange={ handleModeChange }
 				/>
 
-				{ charLimit > 0 && (
-					<p style={ { marginTop: '8px', fontSize: '12px' } }>
-						{ __( '現在の文字数:', 'next-title-trim-count' ) }{ ' ' }
-						<strong>{ charCount }</strong>{ ' ' }
-						{ __( '文字', 'next-title-trim-count' ) }
-					</p>
+				{ trimMode === 'char' && (
+					<>
+						<LimitInput
+							label={ __( '最大文字数', 'next-title-trim-count' ) }
+							help={ __( '0 を設定すると制限なし', 'next-title-trim-count' ) }
+							value={ charLimit }
+							onChange={ ( v ) => setAttributes( { [ ATTR_CHAR ]: v } ) }
+						/>
+
+						{ charLimit > 0 && (
+							<p style={ { marginTop: '8px', fontSize: '12px' } }>
+								{ __( '現在の文字数:', 'next-title-trim-count' ) }{ ' ' }
+								<strong>{ charCount }</strong>{ ' ' }
+								{ __( '文字', 'next-title-trim-count' ) }
+							</p>
+						) }
+
+						{ isOver && (
+							<Notice status="warning" isDismissible={ false }>
+								{ charCount - charLimit }{ ' ' }
+								{ __( '文字超過 — フロントエンドで「…」に省略されます', 'next-title-trim-count' ) }
+							</Notice>
+						) }
+					</>
 				) }
 
-				{ isOver && (
-					<Notice status="warning" isDismissible={ false }>
-						{ charCount - charLimit }{ ' ' }
-						{ __( '文字超過 — フロントエンドで「…」に省略されます', 'next-title-trim-count' ) }
-					</Notice>
+				{ trimMode === 'line' && (
+					<>
+						<LimitInput
+							label={ __( '最大行数', 'next-title-trim-count' ) }
+							help={ __( '0 を設定すると制限なし', 'next-title-trim-count' ) }
+							value={ lineClamp }
+							onChange={ ( v ) => setAttributes( { [ ATTR_LINE ]: v } ) }
+						/>
+
+						{ lineClamp > 0 && (
+							<Notice status="info" isDismissible={ false }>
+								{ __( '行数はブラウザの表示幅・フォントサイズに依存します。省略はフロントエンドのみで確認できます。', 'next-title-trim-count' ) }
+							</Notice>
+						) }
+					</>
 				) }
 			</PanelBody>
 		</InspectorControls>
 	);
 };
 
-/**
- * core/post-title 用パネル
- *
- * クエリーループ内では各投稿のタイトルが動的に変わるため文字数の表示はせず、
- * 制限値の設定とフロントエンドでの動作説明のみを表示する。
- */
-const PostTitleCharLimitPanel = ( { charLimit, setAttributes } ) => {
-	// クエリーループ内かどうかを判定
-	// （useBlockEditContext ではなく親コンテキストで確認）
+// -------------------------------------------------------
+// 3. core/post-title 用パネル
+// -------------------------------------------------------
+const PostTitleCharLimitPanel = ( { charLimit, lineClamp, trimMode, setAttributes } ) => {
 	const isInsideQueryLoop = useSelect( ( select ) => {
 		const { getBlockParentsByBlockName, getSelectedBlockClientId } =
 			select( 'core/block-editor' );
 		const clientId = getSelectedBlockClientId();
 		if ( ! clientId ) return false;
-		const queryParents = getBlockParentsByBlockName( clientId, 'core/query' );
-		return queryParents.length > 0;
+		return getBlockParentsByBlockName( clientId, 'core/query' ).length > 0;
 	}, [] );
 
-	const handleChange = ( value ) => {
-		const parsed = parseInt( value, 10 );
-		setAttributes( { [ ATTR_NAME ]: isNaN( parsed ) || parsed < 0 ? 0 : parsed } );
+	const handleModeChange = ( mode ) => {
+		if ( mode === 'line' ) {
+			setAttributes( { [ ATTR_MODE ]: 'line', [ ATTR_CHAR ]: 0 } );
+		} else {
+			setAttributes( { [ ATTR_MODE ]: 'char', [ ATTR_LINE ]: 0 } );
+		}
 	};
 
 	return (
@@ -116,17 +163,35 @@ const PostTitleCharLimitPanel = ( { charLimit, setAttributes } ) => {
 				title={ __( '文字数制限', 'next-title-trim-count' ) }
 				initialOpen={ true }
 			>
-				<TextControl
-					label={ __( '最大文字数', 'next-title-trim-count' ) }
-					help={ __( '0 を設定すると制限なし', 'next-title-trim-count' ) }
-					type="number"
-					min={ 0 }
-					value={ charLimit === 0 ? '' : String( charLimit ) }
-					placeholder="0"
-					onChange={ handleChange }
+				<RadioControl
+					label={ __( '制限タイプ', 'next-title-trim-count' ) }
+					selected={ trimMode }
+					options={ [
+						{ label: __( '文字数', 'next-title-trim-count' ), value: 'char' },
+						{ label: __( '行数', 'next-title-trim-count' ),   value: 'line' },
+					] }
+					onChange={ handleModeChange }
 				/>
 
-				{ isInsideQueryLoop && charLimit > 0 && (
+				{ trimMode === 'char' && (
+					<LimitInput
+						label={ __( '最大文字数', 'next-title-trim-count' ) }
+						help={ __( '0 を設定すると制限なし', 'next-title-trim-count' ) }
+						value={ charLimit }
+						onChange={ ( v ) => setAttributes( { [ ATTR_CHAR ]: v } ) }
+					/>
+				) }
+
+				{ trimMode === 'line' && (
+					<LimitInput
+						label={ __( '最大行数', 'next-title-trim-count' ) }
+						help={ __( '0 を設定すると制限なし', 'next-title-trim-count' ) }
+						value={ lineClamp }
+						onChange={ ( v ) => setAttributes( { [ ATTR_LINE ]: v } ) }
+					/>
+				) }
+
+				{ isInsideQueryLoop && ( charLimit > 0 || lineClamp > 0 ) && (
 					<Notice status="info" isDismissible={ false }>
 						{ __( 'クエリーループ内の全投稿タイトルに適用されます。省略はフロントエンドのみで確認できます。', 'next-title-trim-count' ) }
 					</Notice>
@@ -136,6 +201,9 @@ const PostTitleCharLimitPanel = ( { charLimit, setAttributes } ) => {
 	);
 };
 
+// -------------------------------------------------------
+// 4. BlockEdit HOC
+// -------------------------------------------------------
 const withCharLimitControl = createHigherOrderComponent( ( BlockEdit ) => {
 	return ( props ) => {
 		if ( ! SUPPORTED_BLOCKS.includes( props.name ) ) {
@@ -143,23 +211,25 @@ const withCharLimitControl = createHigherOrderComponent( ( BlockEdit ) => {
 		}
 
 		const { attributes, setAttributes, name } = props;
-		const charLimit = attributes[ ATTR_NAME ] || 0;
+		const charLimit = attributes[ ATTR_CHAR ] || 0;
+		const lineClamp = attributes[ ATTR_LINE ] || 0;
+		const trimMode  = attributes[ ATTR_MODE ] || 'char';
 
-		// core/post-title は動的コンテンツのため専用パネルを使用
 		if ( name === 'core/post-title' ) {
 			return (
 				<>
 					<BlockEdit { ...props } />
 					<PostTitleCharLimitPanel
 						charLimit={ charLimit }
+						lineClamp={ lineClamp }
+						trimMode={ trimMode }
 						setAttributes={ setAttributes }
 					/>
 				</>
 			);
 		}
 
-		// core/heading はブロック属性 content から文字数を算出
-		// スプレッド構文で Unicode コードポイント単位にカウント（絵文字等のサロゲートペア対応）
+		// core/heading: スプレッド構文で Unicode コードポイント単位にカウント
 		const charCount = [ ...getPlainText( attributes.content || '' ) ].length;
 
 		return (
@@ -167,6 +237,8 @@ const withCharLimitControl = createHigherOrderComponent( ( BlockEdit ) => {
 				<BlockEdit { ...props } />
 				<CharLimitPanel
 					charLimit={ charLimit }
+					lineClamp={ lineClamp }
+					trimMode={ trimMode }
 					charCount={ charCount }
 					setAttributes={ setAttributes }
 				/>
