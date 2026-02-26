@@ -8,6 +8,7 @@ import { __ } from '@wordpress/i18n';
 const SUPPORTED_BLOCKS = [ 'core/heading', 'core/post-title' ];
 const ATTR_CHAR        = 'nextCharLimit';
 const ATTR_LINE        = 'nextLineClamp';
+const ATTR_MODE        = 'nextTrimMode'; // 'char' | 'line'
 
 // -------------------------------------------------------
 // 1. 対象ブロックに属性を追加
@@ -25,6 +26,7 @@ addFilter(
 				...( settings.attributes || {} ),
 				[ ATTR_CHAR ]: { type: 'number', default: 0 },
 				[ ATTR_LINE ]: { type: 'number', default: 0 },
+				[ ATTR_MODE ]: { type: 'string', default: 'char' },
 			},
 		};
 	}
@@ -41,13 +43,6 @@ const getPlainText = ( html ) => {
 	el.innerHTML = html;
 	return el.textContent || el.innerText || '';
 };
-
-/**
- * 現在の制限タイプを返す
- * nextLineClamp > 0 なら 'line'、それ以外は 'char'
- */
-const getTrimMode = ( lineClamp ) =>
-	lineClamp > 0 ? 'line' : 'char';
 
 /** 数値入力コントロール（共通） */
 const LimitInput = ( { label, help, value, onChange } ) => (
@@ -68,15 +63,14 @@ const LimitInput = ( { label, help, value, onChange } ) => (
 // -------------------------------------------------------
 // 2. core/heading 用パネル
 // -------------------------------------------------------
-const CharLimitPanel = ( { charLimit, lineClamp, charCount, setAttributes } ) => {
-	const trimMode = getTrimMode( lineClamp );
-	const isOver   = trimMode === 'char' && charLimit > 0 && charCount > charLimit;
+const CharLimitPanel = ( { charLimit, lineClamp, trimMode, charCount, setAttributes } ) => {
+	const isOver = trimMode === 'char' && charLimit > 0 && charCount > charLimit;
 
 	const handleModeChange = ( mode ) => {
 		if ( mode === 'line' ) {
-			setAttributes( { [ ATTR_CHAR ]: 0 } );
+			setAttributes( { [ ATTR_MODE ]: 'line', [ ATTR_CHAR ]: 0 } );
 		} else {
-			setAttributes( { [ ATTR_LINE ]: 0 } );
+			setAttributes( { [ ATTR_MODE ]: 'char', [ ATTR_LINE ]: 0 } );
 		}
 	};
 
@@ -146,7 +140,7 @@ const CharLimitPanel = ( { charLimit, lineClamp, charCount, setAttributes } ) =>
 // -------------------------------------------------------
 // 3. core/post-title 用パネル
 // -------------------------------------------------------
-const PostTitleCharLimitPanel = ( { charLimit, lineClamp, setAttributes } ) => {
+const PostTitleCharLimitPanel = ( { charLimit, lineClamp, trimMode, setAttributes } ) => {
 	const isInsideQueryLoop = useSelect( ( select ) => {
 		const { getBlockParentsByBlockName, getSelectedBlockClientId } =
 			select( 'core/block-editor' );
@@ -155,13 +149,11 @@ const PostTitleCharLimitPanel = ( { charLimit, lineClamp, setAttributes } ) => {
 		return getBlockParentsByBlockName( clientId, 'core/query' ).length > 0;
 	}, [] );
 
-	const trimMode = getTrimMode( lineClamp );
-
 	const handleModeChange = ( mode ) => {
 		if ( mode === 'line' ) {
-			setAttributes( { [ ATTR_CHAR ]: 0 } );
+			setAttributes( { [ ATTR_MODE ]: 'line', [ ATTR_CHAR ]: 0 } );
 		} else {
-			setAttributes( { [ ATTR_LINE ]: 0 } );
+			setAttributes( { [ ATTR_MODE ]: 'char', [ ATTR_LINE ]: 0 } );
 		}
 	};
 
@@ -221,6 +213,7 @@ const withCharLimitControl = createHigherOrderComponent( ( BlockEdit ) => {
 		const { attributes, setAttributes, name } = props;
 		const charLimit = attributes[ ATTR_CHAR ] || 0;
 		const lineClamp = attributes[ ATTR_LINE ] || 0;
+		const trimMode  = attributes[ ATTR_MODE ] || 'char';
 
 		if ( name === 'core/post-title' ) {
 			return (
@@ -229,6 +222,7 @@ const withCharLimitControl = createHigherOrderComponent( ( BlockEdit ) => {
 					<PostTitleCharLimitPanel
 						charLimit={ charLimit }
 						lineClamp={ lineClamp }
+						trimMode={ trimMode }
 						setAttributes={ setAttributes }
 					/>
 				</>
@@ -244,6 +238,7 @@ const withCharLimitControl = createHigherOrderComponent( ( BlockEdit ) => {
 				<CharLimitPanel
 					charLimit={ charLimit }
 					lineClamp={ lineClamp }
+					trimMode={ trimMode }
 					charCount={ charCount }
 					setAttributes={ setAttributes }
 				/>
