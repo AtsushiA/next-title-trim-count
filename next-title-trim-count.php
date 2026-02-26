@@ -70,6 +70,9 @@ add_filter( 'render_block', function ( $block_content, $block ) {
  * h タグに CSS line-clamp 用のインラインスタイルを付与する。
  *
  * ベンダープレフィックス付きと標準プロパティの両方を設定する。
+ * 内側に <a> がある場合（isLink 設定時など）は <a> に直接適用する。
+ * テーマが .wp-block-post-title a に display:inline-block 等を付与していても
+ * インラインスタイルで上書きされるため line-clamp が正常に動作する。
  *
  * @param string $block_content レンダリング済みブロック HTML
  * @param int    $line_clamp    最大行数
@@ -84,29 +87,54 @@ function next_title_trim_count_apply_line_clamp( $block_content, $line_clamp ) {
 	);
 
 	return preg_replace_callback(
-		'/(<h[1-6])([^>]*)(>)/i',
+		'/(<h[1-6])([^>]*)(>)(.*?)(<\/h[1-6]>)/si',
 		function ( $matches ) use ( $css ) {
-			$tag   = $matches[1]; // 例: <h2
-			$attrs = $matches[2]; // 既存の属性文字列
-			$close = $matches[3]; // >
+			$tag       = $matches[1]; // 例: <h2
+			$attrs     = $matches[2]; // 既存の属性文字列
+			$close     = $matches[3]; // >
+			$inner     = $matches[4]; // 内側の HTML
+			$close_tag = $matches[5]; // 例: </h2>
 
-			// 既存の style 属性があれば先頭に追記、なければ新規追加
-			if ( preg_match( '/\bstyle\s*=\s*"/i', $attrs ) ) {
-				$attrs = preg_replace_callback(
-					'/(\bstyle\s*=\s*")([^"]*")/i',
-					function ( $m ) use ( $css ) {
-						return $m[1] . $css . $m[2];
+			if ( preg_match( '/<a\b/i', $inner ) ) {
+				// <a> がある場合: <h*> に overflow:hidden のみ付与し、
+				// <a> に line-clamp CSS を適用して display:inline-block を上書きする
+				$attrs = next_title_trim_count_inject_style( $attrs, 'overflow:hidden;' );
+				$inner = preg_replace_callback(
+					'/(<a)([^>]*)(>)/i',
+					function ( $a ) use ( $css ) {
+						return $a[1] . next_title_trim_count_inject_style( $a[2], $css ) . $a[3];
 					},
-					$attrs
+					$inner
 				);
 			} else {
-				$attrs .= ' style="' . esc_attr( $css ) . '"';
+				// <a> がない場合: <h*> に直接適用
+				$attrs = next_title_trim_count_inject_style( $attrs, $css );
 			}
 
-			return $tag . $attrs . $close;
+			return $tag . $attrs . $close . $inner . $close_tag;
 		},
 		$block_content
 	);
+}
+
+/**
+ * 属性文字列にインラインスタイルを追加または既存スタイルの先頭に追記する。
+ *
+ * @param string $attrs 既存の属性文字列
+ * @param string $css   追加する CSS 文字列
+ * @return string
+ */
+function next_title_trim_count_inject_style( $attrs, $css ) {
+	if ( preg_match( '/\bstyle\s*=\s*"/i', $attrs ) ) {
+		return preg_replace_callback(
+			'/(\bstyle\s*=\s*")([^"]*")/i',
+			function ( $m ) use ( $css ) {
+				return $m[1] . $css . $m[2];
+			},
+			$attrs
+		);
+	}
+	return $attrs . ' style="' . esc_attr( $css ) . '"';
 }
 
 /**
