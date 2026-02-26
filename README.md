@@ -2,7 +2,7 @@
 
 タイトル・見出しブロックに**文字数**または**行数**で制限を追加する WordPress プラグイン。制限を超えた部分はフロントエンドで「…」に省略表示されます。
 
-**Version: 1.2.0**
+**Version: 1.3.0**
 
 ## 機能
 
@@ -79,6 +79,11 @@ next-Title-TrimCount/
 ```
 
 ## 変更履歴
+
+### 1.3.0
+- `core/post-title` の `isLink` 有効時に line-clamp が効かない問題を修正
+  - テーマが `<a>` に `display:inline-block` を付与している場合、`<a>` に直接 line-clamp を適用するよう変更
+- スタイル注入ロジックを `inject_style` ヘルパー関数に整理
 
 ### 1.2.0
 - 行数制限機能を追加（CSS `-webkit-line-clamp` / `line-clamp` によるフロントエンド処理）
