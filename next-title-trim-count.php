@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Next Title TrimCount
  * Description: タイトル・見出しブロックに文字数制限を追加するプラグイン。制限を超えた部分は「…」で省略表示されます。
- * Version:     1.3.0
+ * Version:     1.4.0
  * Author:		NExT-Season
  * Author URI:	https://next-season.net
  * Requires at least: 6.0
