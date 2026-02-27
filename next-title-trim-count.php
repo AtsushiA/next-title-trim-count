@@ -38,7 +38,7 @@ add_action( 'enqueue_block_editor_assets', function () {
  * フロントエンドでタイトル / 見出しブロックのテキストをトリムする
  */
 add_filter( 'render_block', function ( $block_content, $block ) {
-	$supported = array( 'core/heading', 'core/post-title' );
+	$supported = array( 'core/heading', 'core/post-title', 'feed-block/feed-item-title' );
 
 	if ( ! in_array( $block['blockName'], $supported, true ) ) {
 		return $block_content;
@@ -55,7 +55,7 @@ add_filter( 'render_block', function ( $block_content, $block ) {
 	// 文字数制限
 	if ( $char_limit > 0 ) {
 		return preg_replace_callback(
-			'/(<h[1-6][^>]*>)(.*?)(<\/h[1-6]>)/si',
+			'/(<(?:h[1-6]|p)[^>]*>)(.*?)(<\/(?:h[1-6]|p)>)/si',
 			function ( $matches ) use ( $char_limit ) {
 				return $matches[1] . next_title_trim_count_truncate( $matches[2], $char_limit ) . $matches[3];
 			},
@@ -87,7 +87,7 @@ function next_title_trim_count_apply_line_clamp( $block_content, $line_clamp ) {
 	);
 
 	return preg_replace_callback(
-		'/(<h[1-6])([^>]*)(>)(.*?)(<\/h[1-6]>)/si',
+		'/(<(?:h[1-6]|p))([^>]*)(>)(.*?)(<\/(?:h[1-6]|p)>)/si',
 		function ( $matches ) use ( $css ) {
 			$tag       = $matches[1]; // 例: <h2
 			$attrs     = $matches[2]; // 既存の属性文字列

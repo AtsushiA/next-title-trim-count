@@ -5,10 +5,14 @@ import { createHigherOrderComponent } from '@wordpress/compose';
 import { useSelect } from '@wordpress/data';
 import { __ } from '@wordpress/i18n';
 
-const SUPPORTED_BLOCKS = [ 'core/heading', 'core/post-title' ];
-const ATTR_CHAR        = 'nextCharLimit';
-const ATTR_LINE        = 'nextLineClamp';
-const ATTR_MODE        = 'nextTrimMode'; // 'char' | 'line'
+const SUPPORTED_BLOCKS = [
+	'core/heading',
+	'core/post-title',
+	'feed-block/feed-item-title',
+];
+const ATTR_CHAR = 'nextCharLimit';
+const ATTR_LINE = 'nextLineClamp';
+const ATTR_MODE = 'nextTrimMode'; // 'char' | 'line'
 
 // -------------------------------------------------------
 // 1. 対象ブロックに属性を追加
@@ -60,8 +64,21 @@ const LimitInput = ( { label, help, value, onChange } ) => (
 	/>
 );
 
+/** 制限タイプ切り替えラジオ（共通） */
+const TrimModeRadio = ( { trimMode, onChange } ) => (
+	<RadioControl
+		label={ __( '制限タイプ', 'next-title-trim-count' ) }
+		selected={ trimMode }
+		options={ [
+			{ label: __( '文字数', 'next-title-trim-count' ), value: 'char' },
+			{ label: __( '行数', 'next-title-trim-count' ),   value: 'line' },
+		] }
+		onChange={ onChange }
+	/>
+);
+
 // -------------------------------------------------------
-// 2. core/heading 用パネル
+// 2. core/heading 用パネル（文字数リアルタイム表示あり）
 // -------------------------------------------------------
 const CharLimitPanel = ( { charLimit, lineClamp, trimMode, charCount, setAttributes } ) => {
 	const isOver = trimMode === 'char' && charLimit > 0 && charCount > charLimit;
@@ -80,15 +97,7 @@ const CharLimitPanel = ( { charLimit, lineClamp, trimMode, charCount, setAttribu
 				title={ __( '文字数制限', 'next-title-trim-count' ) }
 				initialOpen={ true }
 			>
-				<RadioControl
-					label={ __( '制限タイプ', 'next-title-trim-count' ) }
-					selected={ trimMode }
-					options={ [
-						{ label: __( '文字数', 'next-title-trim-count' ), value: 'char' },
-						{ label: __( '行数', 'next-title-trim-count' ),   value: 'line' },
-					] }
-					onChange={ handleModeChange }
-				/>
+				<TrimModeRadio trimMode={ trimMode } onChange={ handleModeChange } />
 
 				{ trimMode === 'char' && (
 					<>
@@ -138,7 +147,7 @@ const CharLimitPanel = ( { charLimit, lineClamp, trimMode, charCount, setAttribu
 };
 
 // -------------------------------------------------------
-// 3. core/post-title 用パネル
+// 3. core/post-title 用パネル（クエリーループ判定あり）
 // -------------------------------------------------------
 const PostTitleCharLimitPanel = ( { charLimit, lineClamp, trimMode, setAttributes } ) => {
 	const isInsideQueryLoop = useSelect( ( select ) => {
@@ -163,15 +172,7 @@ const PostTitleCharLimitPanel = ( { charLimit, lineClamp, trimMode, setAttribute
 				title={ __( '文字数制限', 'next-title-trim-count' ) }
 				initialOpen={ true }
 			>
-				<RadioControl
-					label={ __( '制限タイプ', 'next-title-trim-count' ) }
-					selected={ trimMode }
-					options={ [
-						{ label: __( '文字数', 'next-title-trim-count' ), value: 'char' },
-						{ label: __( '行数', 'next-title-trim-count' ),   value: 'line' },
-					] }
-					onChange={ handleModeChange }
-				/>
+				<TrimModeRadio trimMode={ trimMode } onChange={ handleModeChange } />
 
 				{ trimMode === 'char' && (
 					<LimitInput
@@ -202,7 +203,55 @@ const PostTitleCharLimitPanel = ( { charLimit, lineClamp, trimMode, setAttribute
 };
 
 // -------------------------------------------------------
-// 4. BlockEdit HOC
+// 4. feed-block/feed-item-title 用パネル（常に動的コンテンツ）
+// -------------------------------------------------------
+const FeedItemTitlePanel = ( { charLimit, lineClamp, trimMode, setAttributes } ) => {
+	const handleModeChange = ( mode ) => {
+		if ( mode === 'line' ) {
+			setAttributes( { [ ATTR_MODE ]: 'line', [ ATTR_CHAR ]: 0 } );
+		} else {
+			setAttributes( { [ ATTR_MODE ]: 'char', [ ATTR_LINE ]: 0 } );
+		}
+	};
+
+	return (
+		<InspectorControls>
+			<PanelBody
+				title={ __( '文字数制限', 'next-title-trim-count' ) }
+				initialOpen={ true }
+			>
+				<TrimModeRadio trimMode={ trimMode } onChange={ handleModeChange } />
+
+				{ trimMode === 'char' && (
+					<LimitInput
+						label={ __( '最大文字数', 'next-title-trim-count' ) }
+						help={ __( '0 を設定すると制限なし', 'next-title-trim-count' ) }
+						value={ charLimit }
+						onChange={ ( v ) => setAttributes( { [ ATTR_CHAR ]: v } ) }
+					/>
+				) }
+
+				{ trimMode === 'line' && (
+					<LimitInput
+						label={ __( '最大行数', 'next-title-trim-count' ) }
+						help={ __( '0 を設定すると制限なし', 'next-title-trim-count' ) }
+						value={ lineClamp }
+						onChange={ ( v ) => setAttributes( { [ ATTR_LINE ]: v } ) }
+					/>
+				) }
+
+				{ ( charLimit > 0 || lineClamp > 0 ) && (
+					<Notice status="info" isDismissible={ false }>
+						{ __( 'Feed ループ内の全アイテムに適用されます。省略はフロントエンドのみで確認できます。', 'next-title-trim-count' ) }
+					</Notice>
+				) }
+			</PanelBody>
+		</InspectorControls>
+	);
+};
+
+// -------------------------------------------------------
+// 5. BlockEdit HOC
 // -------------------------------------------------------
 const withCharLimitControl = createHigherOrderComponent( ( BlockEdit ) => {
 	return ( props ) => {
@@ -220,6 +269,20 @@ const withCharLimitControl = createHigherOrderComponent( ( BlockEdit ) => {
 				<>
 					<BlockEdit { ...props } />
 					<PostTitleCharLimitPanel
+						charLimit={ charLimit }
+						lineClamp={ lineClamp }
+						trimMode={ trimMode }
+						setAttributes={ setAttributes }
+					/>
+				</>
+			);
+		}
+
+		if ( name === 'feed-block/feed-item-title' ) {
+			return (
+				<>
+					<BlockEdit { ...props } />
+					<FeedItemTitlePanel
 						charLimit={ charLimit }
 						lineClamp={ lineClamp }
 						trimMode={ trimMode }
