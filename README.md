@@ -2,11 +2,11 @@
 
 タイトル・見出しブロックに**文字数**または**行数**で制限を追加する WordPress プラグイン。制限を超えた部分はフロントエンドで「…」に省略表示されます。
 
-**Version: 1.3.0**
+**Version: 1.4.0**
 
 ## 機能
 
-- **対応ブロック**: `core/heading`（見出し）、`core/post-title`（投稿タイトル）
+- **対応ブロック**: `core/heading`（見出し）、`core/post-title`（投稿タイトル）、`feed-block/feed-item-title`（Feed Item Title）
 - ブロックエディターのインスペクターパネルから最大文字数を設定
 - 現在の文字数をリアルタイム表示（見出しブロック）
 - 制限超過時に警告通知を表示（見出しブロック）
@@ -79,6 +79,11 @@ next-Title-TrimCount/
 ```
 
 ## 変更履歴
+
+### 1.4.0
+- `feed-block/feed-item-title`（Feed Item Title）ブロックに対応
+- 文字数制限・行数制限ともに Feed ループ内の全アイテムに適用可能
+- `<p>` タグ出力（level=0 設定時）にも対応
 
 ### 1.3.0
 - `core/post-title` の `isLink` 有効時に line-clamp が効かない問題を修正
