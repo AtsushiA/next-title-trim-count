@@ -75,15 +75,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: wordpress/plugin-check-action@v1
+      - uses: actions/setup-node@v4
         with:
-          exclude-directories: 'vendor,tests,node_modules'
-          ignore-warnings: true
-          categories: |
-            general
-            performance
-            accessibility
-            security
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Start wp-env
+        run: npx wp-env start
+      - name: Install & activate plugin-check
+        run: |
+          npx wp-env run cli wp plugin install plugin-check --activate
+      - name: Run plugin check
+        run: |
+          npx wp-env run cli wp plugin check next-Title-TrimCount \
+            --ignore-warnings \
+            --categories=general,performance,accessibility,security \
+            --exclude-directories=vendor,tests,node_modules
 
   e2e:
     name: E2E Tests
