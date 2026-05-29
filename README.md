@@ -1,5 +1,8 @@
 # Next Title TrimCount
 
+[![CI](https://github.com/AtsushiA/next-title-trim-count/actions/workflows/ci.yml/badge.svg)](https://github.com/AtsushiA/next-title-trim-count/actions/workflows/ci.yml)
+[![Latest Release](https://img.shields.io/github/v/release/AtsushiA/next-title-trim-count)](https://github.com/AtsushiA/next-title-trim-count/releases/latest)
+
 タイトル・見出しブロックに**文字数**または**行数**で制限を追加する WordPress プラグイン。制限を超えた部分はフロントエンドで「…」に省略表示されます。
 
 **Version: 1.4.0**
@@ -37,13 +40,25 @@
 
 ### 必要なツール
 
-- Node.js
-- npm
+- Node.js / npm
+- PHP / Composer
+- Docker（wp-env 用）
 
 ### セットアップ
 
 ```bash
 npm install
+composer install
+```
+
+### ローカル環境（wp-env）
+
+```bash
+# 起動（http://localhost:8888）
+npx wp-env start
+
+# 停止
+npx wp-env stop
 ```
 
 ### ビルド
@@ -56,6 +71,26 @@ npm run build
 npm run start
 ```
 
+### テスト
+
+```bash
+# コーディング規約チェック（phpcs）
+composer run phpcs
+
+# 自動修正（phpcbf）
+composer run phpcbf
+
+# Unit テスト（WP 不要・ローカル実行可）
+vendor/bin/phpunit --testsuite unit
+
+# Integration テスト（wp-env 起動後に実行）
+npx wp-env run tests-cli --env-cwd=wp-content/plugins/next-Title-TrimCount \
+  vendor/bin/phpunit --testsuite integration --bootstrap=tests/phpunit/bootstrap.php
+
+# E2E テスト（wp-env 起動後に実行）
+npm run test:e2e
+```
+
 ### 配布用 ZIP 作成
 
 ```bash
@@ -64,16 +99,34 @@ npm run zip
 
 `build/` 以外のソースファイルを除いた ZIP が親ディレクトリに生成されます。
 
+### リリース
+
+プラグインヘッダーの `Version:` を更新後、タグをプッシュすると GitHub Actions が自動でリリース ZIP を作成します。
+
+```bash
+git tag x.y.z
+git push origin x.y.z
+```
+
 ## ファイル構成
 
 ```
 next-Title-TrimCount/
+├── .github/workflows/
+│   ├── ci.yml             # CI（phpcs / phpunit / e2e / plugin-check）
+│   └── release.yml        # タグ push で GitHub Release を自動作成
+├── bin/
+│   └── install-wp-tests.sh
 ├── build/
 │   ├── index.js           # ビルド済みエディタースクリプト
-│   └── index.asset.php    # 依存関係・バージョン情報
+│   └── index.asset.php
 ├── src/
 │   └── index.js           # エディタースクリプトのソース
+├── tests/
+│   ├── e2e/               # Playwright E2E テスト
+│   └── phpunit/           # PHPUnit Unit / Integration テスト
 ├── next-title-trim-count.php  # プラグイン本体
+├── composer.json
 ├── package.json
 └── README.md
 ```
