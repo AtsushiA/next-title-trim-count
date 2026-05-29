@@ -27,7 +27,7 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: root
-          # MYSQL_DATABASE は指定しない（install-wp-tests.sh の第6引数 true で DB 作成をスキップ）
+          # MYSQL_DATABASE は指定しない → install-wp-tests.sh が wordpress_test を作成する
         ports:
           - 3306:3306
         options: >-
@@ -59,7 +59,8 @@ jobs:
           rm -rf vendor
           composer install --no-interaction
       - name: Install WordPress test suite
-        run: bash bin/install-wp-tests.sh wordpress_test root root 127.0.0.1 ${{ matrix.wp }} true
+        # 第6引数なし → スクリプトが wordpress_test DB を作成する
+        run: bash bin/install-wp-tests.sh wordpress_test root root 127.0.0.1 ${{ matrix.wp }}
       - name: Run PHPUnit
         env:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
@@ -70,6 +71,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      # npm ci で node_modules/.bin/wp-env を PATH に追加し、
+      # plugin-check-action が一貫した wp-env バージョンを使うようにする
+      - run: npm ci
       - uses: wordpress/plugin-check-action@v1
         with:
           exclude-directories: 'vendor,tests,node_modules'
