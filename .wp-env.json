@@ -11,10 +11,6 @@
     "SCRIPT_DEBUG": true,
     "SAVEQUERIES": true
   },
-  "mappings": {
-    "wp-content/debug.log": "./debug.log",
-    "db.sql": "./db.sql"
-  },
   "env": {
     "tests": {
       "phpVersion": "8.3",
