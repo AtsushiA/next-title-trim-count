@@ -59,25 +59,22 @@ jobs:
           rm -rf vendor
           composer install --no-interaction
       - name: Install WordPress test suite
-        # 第6引数なし → スクリプトが wordpress_test DB を作成する
+        # 引数6なし → スクリプトが wordpress_test DB を作成する
         run: bash bin/install-wp-tests.sh wordpress_test root root 127.0.0.1 ${{ matrix.wp }}
-      - name: Run PHPUnit
+      - name: Run Unit tests
+        # Unit bootstrap (WP非依存) で実行。Integration bootstrap を使うと
+        # WordPress が先にロードされ Brain\Monkey の Patchwork が競合する。
+        run: vendor/bin/phpunit --testsuite unit
+      - name: Run Integration tests
         env:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
-        run: vendor/bin/phpunit --bootstrap tests/phpunit/bootstrap.php
+        run: vendor/bin/phpunit --testsuite integration --bootstrap tests/phpunit/bootstrap.php
 
   plugin-check:
     name: Plugin Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      # npm ci で node_modules/.bin/wp-env を PATH に追加し、
-      # plugin-check-action が一貫した wp-env バージョンを使うようにする
-      - run: npm ci
       - uses: wordpress/plugin-check-action@v1
         with:
           exclude-directories: 'vendor,tests,node_modules'
