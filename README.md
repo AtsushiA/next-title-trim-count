@@ -5,7 +5,7 @@
 
 タイトル・見出しブロックに**文字数**または**行数**で制限を追加する WordPress プラグイン。制限を超えた部分はフロントエンドで「…」に省略表示されます。
 
-**Version: 1.4.0**
+**Version: 1.4.1**
 
 ## 機能
 
@@ -132,6 +132,10 @@ next-Title-TrimCount/
 ```
 
 ## 変更履歴
+
+### 1.4.1
+- コード整形（phpcs / WordPress Coding Standards 準拠）
+- CI/CD パイプライン追加（phpcs / phpunit / e2e / plugin-check / GitHub Actions）
 
 ### 1.4.0
 - `feed-block/feed-item-title`（Feed Item Title）ブロックに対応
