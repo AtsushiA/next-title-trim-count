@@ -86,8 +86,9 @@ jobs:
         run: |
           npx wp-env run cli wp plugin install plugin-check --activate
       - name: Run plugin check
+        # CI では GitHub がリポジトリ名で checkout するため小文字のスラグを使用
         run: |
-          npx wp-env run cli wp plugin check next-Title-TrimCount \
+          npx wp-env run cli wp plugin check next-title-trim-count \
             --ignore-warnings \
             --categories=general,performance,accessibility,security \
             --exclude-directories=vendor,tests,node_modules
